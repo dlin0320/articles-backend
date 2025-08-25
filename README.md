@@ -121,7 +121,47 @@ python app.py
 go run cmd/api/main.go
 ```
 
+## 🔨 Development Commands
+
+### Build & Run
+```bash
+# Build the application
+go build -o articles-api cmd/api/main.go
+
+# Run the built binary
+./articles-api
+
+# Format code
+go fmt ./...
+
+# Vet code for issues
+go vet ./...
+
+# Run with specific environment
+GIN_MODE=release go run cmd/api/main.go
+```
+
+### Using Make (if available)
+```bash
+# Run tests
+make test
+
+# Run integration tests
+make test-integration
+
+# Clean and build
+make clean build
+```
+
 ## 📚 API Documentation
+
+### API Versioning
+
+The API supports both legacy routes and versioned routes:
+- Legacy: `/signup`, `/login`, `/articles`, etc.
+- Versioned: `/api/v1/signup`, `/api/v1/login`, `/api/v1/articles`, etc.
+
+For new integrations, use the versioned endpoints. Legacy routes are maintained for backward compatibility.
 
 ### Authentication Endpoints
 
@@ -186,7 +226,7 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "rating": 5
+  "score": 5
 }
 ```
 
@@ -218,7 +258,16 @@ go test -cover ./...
 
 ### Run Integration Tests
 ```bash
+# Using go test directly
 go test -tags=integration ./tests/integration/...
+
+# Using Docker Compose test environment
+docker-compose -f docker-compose.test.yml up --build
+
+# Run specific integration test suites
+go test -tags=integration -run TestAuthEndpoints ./tests/integration/
+go test -tags=integration -run TestArticleEndpoints ./tests/integration/
+go test -tags=integration -run TestRatingEndpoints ./tests/integration/
 ```
 
 ### Test Embedding Service
@@ -241,11 +290,18 @@ All configuration is managed through environment variables. See `.env.example` f
 | `SERVER_PORT` | API server port | 8080 |
 | `DB_HOST` | PostgreSQL host | localhost |
 | `DB_PORT` | PostgreSQL port | 5432 |
+| `DB_USER` | Database user | postgres |
+| `DB_PASSWORD` | Database password | (required) |
+| `DB_NAME` | Database name | articles |
+| `DB_SSLMODE` | SSL mode for database | disable |
 | `JWT_SECRET` | JWT signing key | (required) |
 | `JWT_EXPIRATION` | Token expiration | 24h |
 | `EMBEDDING_SERVICE_URL` | ML service URL | http://localhost:8001 |
 | `WORKER_RETRY_INTERVAL` | Retry interval | 5m |
+| `WORKER_MAX_RETRIES` | Maximum retry attempts | 3 |
 | `LOG_LEVEL` | Logging level | info |
+| `HTTP_CLIENT_TIMEOUT` | HTTP client timeout | 30s |
+| `READABILITY_API_KEY` | Readability API key | (optional) |
 
 ## 🔒 Security
 
@@ -277,6 +333,74 @@ docker-compose up -d --build
 - Implement rate limiting
 - Set up monitoring and alerting
 
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### Database Connection Failed
+```bash
+# Check PostgreSQL is running
+docker ps | grep postgres
+
+# Verify pgvector extension
+docker exec -it articles-backend-postgres-1 psql -U postgres -d articles -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+```
+
+#### Embedding Service Not Responding
+```bash
+# Check service health
+curl http://localhost:8001/health
+
+# Check Docker logs
+docker logs articles-backend-embedding-service-1
+
+# Restart embedding service
+docker-compose restart embedding-service
+```
+
+#### JWT Token Issues
+```bash
+# Ensure JWT_SECRET is set
+echo $JWT_SECRET
+
+# Test token generation
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password"}'
+```
+
+#### Migration Issues
+```bash
+# Reset database (WARNING: deletes all data)
+docker-compose down -v
+docker-compose up --build
+
+# Manual migration
+docker exec -it articles-backend-postgres-1 psql -U postgres -d articles
+```
+
+### Performance Tuning
+
+#### Database Optimization
+```sql
+-- Check slow queries
+SELECT * FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;
+
+-- Analyze query performance
+EXPLAIN ANALYZE SELECT * FROM articles WHERE user_id = '...';
+
+-- Update statistics
+ANALYZE articles;
+```
+
+#### Vector Index Performance
+```sql
+-- Check index usage
+SELECT * FROM pg_stat_user_indexes WHERE tablename = 'articles';
+
+-- Rebuild vector index if needed
+REINDEX INDEX articles_embedding_idx;
+```
 
 ## 🙏 Acknowledgments
 
