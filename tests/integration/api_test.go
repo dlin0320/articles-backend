@@ -4,84 +4,65 @@
 package integration
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
-	"gorm.io/gorm"
+	"github.com/stretchr/testify/require"
 )
 
-type APITestSuite struct {
-	suite.Suite
-	db     *gorm.DB
-	router *gin.Engine
-	token  string
-}
-
-func (suite *APITestSuite) SetupSuite() {
-	// Skip the integration tests if they're problematic - just create a passing test
-	suite.db = nil
-	suite.setupSimpleRouter()
-}
-
-func (suite *APITestSuite) setupSimpleRouter() {
-	gin.SetMode(gin.TestMode)
-
-	// Setup simple router for basic testing
-	router := gin.New()
-
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
+// TestServicesRunning verifies that all required services are accessible
+func TestServicesRunning(t *testing.T) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	
+	t.Run("API Service Health", func(t *testing.T) {
+		resp, err := client.Get(APIBaseURL + "/health")
+		require.NoError(t, err, "API service should be accessible at %s", APIBaseURL)
+		defer resp.Body.Close()
+		
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "API health check should return 200")
+		t.Logf("✅ API service is running at %s", APIBaseURL)
 	})
-
-	suite.router = router
+	
+	t.Run("Embedding Service Health", func(t *testing.T) {
+		resp, err := client.Get(EmbeddingServiceBaseURL + "/health")
+		require.NoError(t, err, "Embedding service should be accessible at %s", EmbeddingServiceBaseURL)
+		defer resp.Body.Close()
+		
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "Embedding service health check should return 200")
+		t.Logf("✅ Embedding service is running at %s", EmbeddingServiceBaseURL)
+	})
 }
 
-func (suite *APITestSuite) TestHealthCheck() {
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
-
-	assert.Equal(suite.T(), http.StatusOK, w.Code)
-
-	var response map[string]string
-	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.Equal(suite.T(), "healthy", response["status"])
-}
-
-func (suite *APITestSuite) TestUserFlow() {
-	// Simplified test - just check that router is set up
-	assert.NotNil(suite.T(), suite.router)
-
-	// Test a basic endpoint
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
-
-	assert.Equal(suite.T(), http.StatusOK, w.Code)
-}
-
-func (suite *APITestSuite) TestArticleFlow() {
-	// Simplified test - just check that router works
-	assert.NotNil(suite.T(), suite.router)
-
-	// Test health endpoint
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
-
-	assert.Equal(suite.T(), http.StatusOK, w.Code)
-}
-
-func (suite *APITestSuite) TearDownSuite() {
-	// Nothing to clean up in simplified version
-}
-
-func TestAPISuite(t *testing.T) {
-	suite.Run(t, new(APITestSuite))
+// TestEndToEndFlow tests a complete user journey through the system
+func TestEndToEndFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping end-to-end test in short mode")
+	}
+	
+	client := &http.Client{Timeout: 60 * time.Second}
+	userEmail := fmt.Sprintf("e2e-test-%d@example.com", time.Now().Unix())
+	
+	t.Log("🧪 Starting End-to-End Integration Test")
+	t.Logf("👤 Test user: %s", userEmail)
+	
+	// This test will be implemented to run a full user journey
+	// For now, just verify the services are ready
+	t.Run("Services Ready", func(t *testing.T) {
+		// API Health
+		resp, err := client.Get(APIBaseURL + "/health")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		
+		// Embedding Service Health  
+		resp, err = client.Get(EmbeddingServiceBaseURL + "/health")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		
+		t.Log("✅ All services are ready for end-to-end testing")
+	})
 }

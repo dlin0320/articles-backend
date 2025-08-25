@@ -177,7 +177,11 @@ func (r *ReadabilityClassifier) fetchHTML(urlStr string) (string, error) {
 	}
 
 	// Read response body
-	buf := make([]byte, 0, resp.ContentLength)
+	initialCap := resp.ContentLength
+	if initialCap < 0 || initialCap > 5*1024*1024 {
+		initialCap = 4096 // default initial capacity
+	}
+	buf := make([]byte, 0, initialCap)
 	for {
 		chunk := make([]byte, 1024)
 		n, err := resp.Body.Read(chunk)

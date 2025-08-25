@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dustin/articles-backend/config"
+	"github.com/google/uuid"
 	"github.com/dustin/articles-backend/internal/adapter"
 	"github.com/dustin/articles-backend/internal/article"
 	"github.com/dustin/articles-backend/internal/classifier"
@@ -288,6 +289,30 @@ func createJWTMiddleware(secret string) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
+		}
+
+		// Extract user information from token claims
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if userIDStr, exists := claims["user_id"].(string); exists {
+				if userID, err := uuid.Parse(userIDStr); err == nil {
+					c.Set("user_id", userID)
+				}
+			}
+			if email, exists := claims["email"]; exists {
+				c.Set("email", email)
+			}
+			// Create a proper User struct for the handler
+			if userIDStr, exists := claims["user_id"].(string); exists {
+				if email, emailExists := claims["email"].(string); emailExists {
+					if userID, err := uuid.Parse(userIDStr); err == nil {
+						userObj := &user.User{
+							ID:    userID,
+							Email: email,
+						}
+						c.Set("user", userObj)
+					}
+				}
+			}
 		}
 
 		c.Next()
