@@ -1,0 +1,64 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+*.md
+DESIGN.md
+IMPLEMENTATION.md
+API.md
+SUMMARY.md
+TESTING.md
+DEPLOYMENT.md
+DOCKER.md
+KUBERNETES.md
+
+# Development files
+.env
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+api
+articles-backend
+*.exe
+
+# Test files
+*_test.go
+test_*.go
+testdata/
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# Docker files (not needed in image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Kubernetes files
+k8s/
+*.yaml
+*.yml
+
+# Temporary files
+tmp/
+temp/
